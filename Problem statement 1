@@ -1,0 +1,149 @@
+Step 1: Dockerize the Wisecow Application
+First, we'll set up a container for the Wisecow app using Docker. This helps us package the entire application with all its dependencies, so it can run anywhere.
+What We’ll Do:
+Clone the Wisecow Project: We start by pulling the project from GitHub:
+git clone https://github.com/nyrahul/wisecow.git
+cd wisecow
+Create a Dockerfile: To package the app, we’ll create a Dockerfile that tells Docker how to build the app image. Since this is a Node.js app, here’s a basic Dockerfile that we’ll use:
+Dockerfile
+FROM node:14
+WORKDIR /app
+package*.json ./
+RUN npm install
+
+EXPOSE 3000
+CMD ["npm", "start"]
+This essentially says: “Start with a Node.js base image, copy the project files, install the necessary packages, and then run the app.”
+ Build the Docker Image: Next, we'll instruct Docker to build the image, using the Dockerfile as a blueprint:
+docker build -t wisecow-app .
+Run the Docker Container: Once we’ve built the image, we’ll run it locally to test if everything is working:
+docker run -p 3000:3000 wisecow-app
+Step 2: Deploy the Wisecow App on Kubernetes
+Now that we’ve containerized the app, we’ll deploy it on a Kubernetes cluster, which allows us to manage the app at scale.
+What We’ll Do:
+Create the Deployment File: First, we’ll define how Kubernetes should deploy the app using a deployment YAML file:
+yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wisecow-deployment
+  labels:
+    app: wisecow
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: wisecow
+  template:
+    metadata:
+      labels:
+        app: wisecow
+    spec:
+      containers:
+      - name: wisecow-app
+        image: wisecow-app:latest
+        ports:
+        - containerPort: 3000
+This file essentially says, "Deploy three replicas of the Wisecow app, each running on port 3000."
+Create the Service File: To make the app accessible, we’ll create a service file that exposes it to the network:
+yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wisecow-service
+spec:
+  selector:
+    app: wisecow
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
+
+
+3. Deploy the App: We can now deploy both files:
+kubectl apply -f wisecow-deployment.yaml
+kubectl apply -f wisecow-service.yaml
+
+
+4. Check the Deployment: To confirm that everything is up and running, we’ll check the pods and services:
+kubectl get pods
+kubectl get svc
+Step 3: Automating Deployment with GitHub Actions
+Instead of manually deploying the app every time there’s a new change, let’s automate it using GitHub Actions.
+What We’ll Do:
+Set Up GitHub Actions Workflow: In our GitHub repository, we’ll create a workflow file that will automatically build and deploy the app whenever we push new code:
+yaml
+
+name: CI/CD Pipeline
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t your-dockerhub-username/wisecow-app:latest .
+          docker push your-dockerhub-username/wisecow-app:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/wisecow-deployment wisecow-app=your-dockerhub-username/wisecow-app:latest
+Add Secrets in GitHub: To make sure the pipeline can push to DockerHub, we’ll add our Docker credentials as secrets in GitHub.
+Push the Workflow: Finally, we’ll push the workflow file to GitHub:
+git add .
+git commit -m "Add CI/CD pipeline"
+git push origin main
+Step 4: Securing the Application with TLS
+To secure our app with HTTPS, we’ll use cert-manager in Kubernetes.
+What We’ll Do:
+Install Cert-Manager: First, we install cert-manager to automatically manage our TLS certificates:
+
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+Create an Ingress Resource: Next, we’ll set up an ingress resource to handle HTTPS traffic, using Let’s Encrypt to provide the certificate:
+yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wisecow-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+      - wisecow.example.com
+    secretName: wisecow-tls
+  rules:
+  - host: wisecow.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wisecow-service
+            port:
+              number: 80
+
+
