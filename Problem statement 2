@@ -1,0 +1,128 @@
+### **Objective 1: System Health Monitoring Script**
+
+We'll create a Python script to monitor the health of a Linux system. The script will check CPU usage, memory usage, disk space, and running processes. If any of these metrics exceed a predefined threshold (e.g., CPU usage > 80%), it will send an alert to the console or log the event.
+
+#### **Script: `system_health_monitor.py`**
+
+```python
+import psutil
+import time
+import logging
+
+# Setup logging
+logging.basicConfig(filename='/var/log/system_health.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Thresholds
+CPU_THRESHOLD = 80.0  # in percentage
+MEMORY_THRESHOLD = 80.0  # in percentage
+DISK_THRESHOLD = 80.0  # in percentage
+CHECK_INTERVAL = 60  # Check every 60 seconds
+
+def check_cpu_usage():
+    cpu_usage = psutil.cpu_percent(interval=1)
+    if cpu_usage > CPU_THRESHOLD:
+        logging.warning(f'High CPU usage detected: {cpu_usage}%')
+        print(f'Alert: CPU usage is above {CPU_THRESHOLD}% - Current usage: {cpu_usage}%')
+
+def check_memory_usage():
+    memory_info = psutil.virtual_memory()
+    memory_usage = memory_info.percent
+    if memory_usage > MEMORY_THRESHOLD:
+        logging.warning(f'High memory usage detected: {memory_usage}%')
+        print(f'Alert: Memory usage is above {MEMORY_THRESHOLD}% - Current usage: {memory_usage}%')
+
+def check_disk_usage():
+    disk_info = psutil.disk_usage('/')
+    disk_usage = disk_info.percent
+    if disk_usage > DISK_THRESHOLD:
+        logging.warning(f'High disk usage detected: {disk_usage}%')
+        print(f'Alert: Disk usage is above {DISK_THRESHOLD}% - Current usage: {disk_usage}%')
+
+def check_running_processes():
+    process_count = len(psutil.pids())
+    logging.info(f'Number of running processes: {process_count}')
+    print(f'Number of running processes: {process_count}')
+
+if __name__ == "__main__":
+    while True:
+        print("\n--- Checking system health ---")
+        check_cpu_usage()
+        check_memory_usage()
+        check_disk_usage()
+        check_running_processes()
+        time.sleep(CHECK_INTERVAL)
+```
+
+#### **How the script works:**
+- **psutil** library is used to check system metrics.
+- It checks CPU, memory, and disk usage at regular intervals (set to 60 seconds in this case).
+- If any of these metrics exceed predefined thresholds, the script logs a warning and prints an alert to the console.
+- The script also logs the number of running processes.
+
+### **Objective 4: Application Health Checker**
+
+We will create a Python script to check the uptime of an application by verifying its HTTP status code. The script will determine if the application is functioning properly or not by checking if it returns a successful HTTP status code (200 OK). If the application is down, it will alert the user.
+
+#### **Script: `application_health_checker.py`**
+
+```python
+import requests
+import time
+import logging
+
+# Setup logging
+logging.basicConfig(filename='/var/log/app_health_checker.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Application URL and check interval
+APP_URL = "http://your-app-url.com"
+CHECK_INTERVAL = 60  # Check every 60 seconds
+
+def check_application_health():
+    try:
+        response = requests.get(APP_URL, timeout=10)
+        if response.status_code == 200:
+            logging.info(f'Application is UP: {response.status_code}')
+            print(f'Application is UP: {response.status_code}')
+        else:
+            logging.warning(f'Application is DOWN: {response.status_code}')
+            print(f'Alert: Application is DOWN - Status Code: {response.status_code}')
+    except requests.exceptions.RequestException as e:
+        logging.error(f'Error connecting to application: {e}')
+        print(f'Alert: Application is DOWN - Error: {e}')
+
+if __name__ == "__main__":
+    while True:
+        print("\n--- Checking application health ---")
+        check_application_health()
+        time.sleep(CHECK_INTERVAL)
+```
+
+#### **How the script works:**
+- **requests** library is used to send an HTTP request to the application URL.
+- The script checks the status code returned by the server:
+  - If the status code is 200 (OK), the application is considered to be "up".
+  - Any other status code is treated as "down" and logs a warning.
+  - If the application is unreachable, the script logs an error.
+- The script logs the result of each check to a log file and prints it to the console.
+- The health check is performed at regular intervals (every 60 seconds by default).
+
+---
+
+### **Usage:**
+
+1. Install the necessary Python packages:
+   ```bash
+   pip install psutil requests
+   ```
+
+2. Run the **System Health Monitoring** script:
+   ```bash
+   python system_health_monitor.py
+   ```
+
+3. Run the **Application Health Checker** script:
+   ```bash
+   python application_health_checker.py
+   ```
+By implementing both of these objectives, we’ve created two useful scripts: one for monitoring the health of a Linux system, and another for checking the uptime and availability of an application.
+
